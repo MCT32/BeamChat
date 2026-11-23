@@ -1,23 +1,56 @@
-use std::{io::{Read, Write}, net::TcpListener};
+use std::{io::{self, Read, Write}, net::TcpListener};
+use env_logger::Env;
+use log::{info, debug, error};
+use thiserror::Error;
 
 const HOST: &str = "127.0.0.1:5555";
 
-fn main() {
-    let listener = TcpListener::bind(HOST).unwrap();
-    println!("Listening on {HOST}");
+#[derive(Error, Debug)]
+enum BeamChatError {
+    #[error("Error opening TCP server")]
+    TcpError(#[from] io::Error),
+}
+
+enum ConnectionState {
+    Listening,
+    Connected,
+}
+
+fn main() -> Result<(), BeamChatError> {
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    let listener = match TcpListener::bind(HOST) {
+        Ok(listener) => listener,
+        Err(err) => return Err(BeamChatError::TcpError(err)),
+    };
+    info!("Listening on {HOST}");
+
+    let mut connection_state = ConnectionState::Listening;
 
     for stream in listener.incoming() {
-        let mut stream = stream.unwrap();
-        let peer = stream.peer_addr().unwrap();
-        println!("new connection: {peer}");
+        let mut stream = match stream {
+            Ok(stream) => stream,
+            Err(err) => {
+                error!("Incoming TCP connection failed: {err}");
+                continue;
+            },
+        };
+
+        // Might not matter if this fails
+        let peer = match stream.peer_addr() {
+            Ok(peer_addr) => peer_addr,
+            Err(err) => {
+                error!("Error getting address from connection: {err}");
+                continue;
+            },
+        };
+        debug!("New connection: {peer}");
 
         let mut buf = [0u8; 1024];
         loop {
-            let n = stream.read(&mut buf).unwrap();
-            if n == 0 {
-                break;
-            }
-            stream.write_all(&buf[..n]).unwrap();
+            // Connection code here
         }
     }
+
+    return Ok(());
 }
