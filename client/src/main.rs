@@ -1,6 +1,9 @@
-use std::{io::{self, Read, Write}, net::TcpListener};
+use std::{io::{self, Read, Write}, net::{Shutdown, TcpListener}};
 use env_logger::Env;
-use log::{info, debug, error};
+use glam::{Quat, Vec3};
+use log::{debug, error, info, trace, warn};
+use serde_json::Value;
+use serde::{Deserialize, de::Visitor};
 use thiserror::Error;
 
 const HOST: &str = "127.0.0.1:5555";
@@ -11,9 +14,15 @@ enum BeamChatError {
     TcpError(#[from] io::Error),
 }
 
-enum ConnectionState {
-    Listening,
-    Connected,
+#[derive(Debug, Deserialize)]
+struct Camera {
+    position: Vec3,
+    rotation: Quat,
+}
+
+#[derive(Debug, Deserialize)]
+struct Packet {
+    camera: Camera,
 }
 
 fn main() -> Result<(), BeamChatError> {
@@ -24,8 +33,6 @@ fn main() -> Result<(), BeamChatError> {
         Err(err) => return Err(BeamChatError::TcpError(err)),
     };
     info!("Listening on {HOST}");
-
-    let mut connection_state = ConnectionState::Listening;
 
     for stream in listener.incoming() {
         let mut stream = match stream {
@@ -44,12 +51,28 @@ fn main() -> Result<(), BeamChatError> {
                 continue;
             },
         };
-        debug!("New connection: {peer}");
+
+        info!("New connection: {peer}");
 
         let mut buf = [0u8; 1024];
         loop {
-            // Connection code here
+            let n = match stream.read(&mut buf) {
+                Err(err) => {
+                    error!("Error getting data from stream: {err}");
+                    break;
+                },
+                Ok(bytes) => bytes,
+            };
+
+            if n == 0 { continue; };
+
+            let packet: Packet = serde_json::from_slice(&buf[..n]).unwrap();
+
+            trace!("Got packet: {packet:?}");
         }
+
+        // Shouldn't matter if it fails?
+        let _ = stream.shutdown(Shutdown::Both);
     }
 
     return Ok(());

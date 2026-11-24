@@ -3,7 +3,8 @@
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-  outputs = { nixpkgs, ... }:
+  outputs =
+    { nixpkgs, ... }:
     let
       systems = [
         "x86_64-linux"
@@ -14,16 +15,14 @@
       forAllSystems = nixpkgs.lib.genAttrs systems;
     in
     {
-      devShells = forAllSystems (system:
+      devShells = forAllSystems (
+        system:
         let
           pkgs = import nixpkgs { inherit system; };
         in
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              nodejs_22
-              pnpm
-
               cargo
               rustc
 
@@ -34,11 +33,18 @@
                   prettier.prettier-vscode
                   svelte.svelte-vscode
                   rust-lang.rust-analyzer
+                ] ++ pkgs.vscode-utils.extensionsFromVscodeMarketplace [
+                  {
+                    name = "vscode-teal";
+                    publisher = "pdesaulniers";
+                    version = "0.11.0";
+                    sha256 = "sha256-idIXnJ5NedwYwuEBPjKc7+UWztodpFboSSfp+oFFNic=";
+                  }
                 ];
               })
             ];
           };
-        });
+        }
+      );
     };
 }
-
