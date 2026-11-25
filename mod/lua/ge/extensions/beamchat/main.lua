@@ -41,7 +41,8 @@ function M.onUpdate(dtReal)
                 }
             }
 
-            local sent, err = tcp:send(json.encode(packet))
+            -- Add newline to determine packet borders
+            local sent, err = tcp:send(json.encode(packet) .. "\n")
             if sent == nil then
                 log("E", "beamchat", "tcp send failed, starting new connection: " .. tostring(err))
                 tcp:close()

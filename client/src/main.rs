@@ -1,9 +1,8 @@
-use std::{io::{self, Read, Write}, net::{Shutdown, TcpListener}};
+use std::{io::{self, BufRead, BufReader}, net::TcpListener};
 use env_logger::Env;
 use glam::{Quat, Vec3};
-use log::{debug, error, info, trace, warn};
-use serde_json::Value;
-use serde::{Deserialize, de::Visitor};
+use log::{error, info, trace};
+use serde::Deserialize;
 use thiserror::Error;
 
 const HOST: &str = "127.0.0.1:5555";
@@ -35,7 +34,7 @@ fn main() -> Result<(), BeamChatError> {
     info!("Listening on {HOST}");
 
     for stream in listener.incoming() {
-        let mut stream = match stream {
+        let stream = match stream {
             Ok(stream) => stream,
             Err(err) => {
                 error!("Incoming TCP connection failed: {err}");
@@ -54,30 +53,34 @@ fn main() -> Result<(), BeamChatError> {
 
         info!("New connection: {peer}");
 
-        let mut buf = [0u8; 1024];
+        let mut reader = BufReader::new(stream);
+        let mut line = String::new();
         loop {
-            let n = match stream.read(&mut buf) {
+            line.clear();
+
+            match reader.read_line(&mut line) {
                 // Zero bytes means stream has closed
                 Ok(0) => {
                     info!("TCP stream closed, waiting for new connection...");
                     break;
                 },
-                Ok(n) => n,
+                Ok(_) => {
+                    let packet: Packet = match serde_json::from_str(line.trim_end()) {
+                        Ok(packet) => packet,
+                        Err(err) => {
+                            error!("Invalid JSON line: {err}");
+                            continue;
+                        }
+                    };
+
+                    trace!("Got packet: {packet:?}");
+                },
                 Err(err) => {
                     error!("Error getting data from stream: {err}");
                     break;
                 },
             };
-
-            if n == 0 { continue; };
-
-            let packet: Packet = serde_json::from_slice(&buf[..n]).unwrap();
-
-            trace!("Got packet: {packet:?}");
         }
-
-        // Shouldn't matter if it fails?
-        let _ = stream.shutdown(Shutdown::Both);
     }
 
     return Ok(());
