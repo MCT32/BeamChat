@@ -34,11 +34,24 @@ function M.onUpdate(dtReal)
             if updateIn > 2 * (1 / updateFreq) then updateIn = 0 end
             updateIn = updateIn + (1 / updateFreq)
 
+            local vehicles = {}
+            -- TODO: Find more efficient way to iterate just vehicles
+            for i = 0, be:getObjectCount() - 1 do
+                local vehicle = be:getObject(i)
+                if vehicle then
+                    vehicles[#vehicles + 1] = {
+                        id = vehicle:getId(),
+                        position = vec3toList(vehicle:getPosition())
+                    }
+                end
+            end
+
             local packet = {
                 camera = {
                     position = vec3toList(core_camera.getPosition()),
                     rotation = quatToList(core_camera.getQuat())
-                }
+                },
+                vehicles = vehicles
             }
 
             -- Add newline to determine packet borders

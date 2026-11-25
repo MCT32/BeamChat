@@ -1,12 +1,11 @@
 use std::{io::{self, BufRead, BufReader}, net::TcpListener, thread};
 use env_logger::Env;
-use glam::{Quat, Vec3};
 use log::{error, info, trace};
-use serde::Deserialize;
 use thiserror::Error;
 
-use crate::audio::audio_thread;
+use crate::{audio::audio_thread, packet::Packet};
 
+mod packet;
 mod audio;
 
 const HOST: &str = "127.0.0.1:5555";
@@ -17,21 +16,11 @@ enum BeamChatError {
     TcpError(#[from] io::Error),
 }
 
-#[derive(Debug, Deserialize)]
-struct Camera {
-    position: Vec3,
-    rotation: Quat,
-}
-
-#[derive(Debug, Deserialize)]
-struct Packet {
-    camera: Camera,
-}
-
 fn main() -> Result<(), BeamChatError> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    let audio_thread = thread::spawn(audio_thread);
+    let (game_data_sender, game_data_receiver) = std::sync::mpsc::channel::<Packet>();
+    let audio_thread = thread::spawn(move || audio_thread(game_data_receiver));
 
     let listener = match TcpListener::bind(HOST) {
         Ok(listener) => listener,
@@ -80,6 +69,7 @@ fn main() -> Result<(), BeamChatError> {
                     };
 
                     trace!("Got packet: {packet:?}");
+                    game_data_sender.send(packet).expect("Cannot send data to audio thread, the threat probably paniced");
                 },
                 Err(err) => {
                     error!("Error getting data from stream: {err}");
