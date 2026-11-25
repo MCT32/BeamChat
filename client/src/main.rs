@@ -57,11 +57,16 @@ fn main() -> Result<(), BeamChatError> {
         let mut buf = [0u8; 1024];
         loop {
             let n = match stream.read(&mut buf) {
+                // Zero bytes means stream has closed
+                Ok(0) => {
+                    info!("TCP stream closed, waiting for new connection...");
+                    break;
+                },
+                Ok(n) => n,
                 Err(err) => {
                     error!("Error getting data from stream: {err}");
                     break;
                 },
-                Ok(bytes) => bytes,
             };
 
             if n == 0 { continue; };
