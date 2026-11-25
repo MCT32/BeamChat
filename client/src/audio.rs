@@ -27,7 +27,6 @@ impl Default for AudioState {
 
 pub fn audio_thread(game_data_receiver: Receiver<Packet>) {
     let mut audio_reader = hound::WavReader::open("sample.wav").unwrap();
-    let test_samples: Vec<_> = audio_reader.samples::<f32>().collect::<Result<Vec<_>, _>>().unwrap();
 
     let host = cpal::default_host();
 
