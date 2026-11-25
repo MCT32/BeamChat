@@ -26,6 +26,10 @@
               cargo
               rustc
 
+              # Rust libs
+              pkg-config
+              alsa-lib
+
               (vscode-with-extensions.override {
                 vscode = vscodium;
                 vscodeExtensions = with vscode-extensions; [

@@ -1,9 +1,13 @@
-use std::{io::{self, BufRead, BufReader}, net::TcpListener};
+use std::{io::{self, BufRead, BufReader}, net::TcpListener, thread};
 use env_logger::Env;
 use glam::{Quat, Vec3};
 use log::{error, info, trace};
 use serde::Deserialize;
 use thiserror::Error;
+
+use crate::audio::audio_thread;
+
+mod audio;
 
 const HOST: &str = "127.0.0.1:5555";
 
@@ -26,6 +30,8 @@ struct Packet {
 
 fn main() -> Result<(), BeamChatError> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+
+    let audio_thread = thread::spawn(audio_thread);
 
     let listener = match TcpListener::bind(HOST) {
         Ok(listener) => listener,
